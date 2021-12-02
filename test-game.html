@@ -1,0 +1,183 @@
+<!doctype html> 
+<html lang="en"> 
+<head> 
+    <meta charset="UTF-8" />
+    <title>Test-Game</title>
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<script>
+
+    var config = {
+        type: Phaser.AUTO,
+        width: 800,
+        height: 600,
+        physics: {
+            default: 'arcade',
+            arcade: {
+                gravity: {y: 500},
+                debug: false
+            }
+        },
+        scene: {
+            preload: preload,
+            create: create,
+            update: update
+        }
+
+    };
+
+    var game = new Phaser.Game(config);
+
+    function preload ()
+    {
+        this.load.image('sky','assets/sky.png');
+        this.load.image('ground','assets/grass2.png');
+        this.load.image('star','assets/star.png');
+        this.load.image('player','assets/redcircle.png');
+        this.load.image('spike', 'assets/spike.png');
+        this.load.image('spike_right', 'assets/spike_right.png');
+        this.load.image('spike_left', 'assets/spike_left.png');
+        this.load.image('door', 'assets/door.png');
+    }
+
+    function create ()
+    {
+        this.cameras.main.setBounds(0,0, 1600, 600);
+        this.add.image(800, 300, 'sky').setScale(2,1);
+
+        platforms = this.physics.add.staticGroup();
+
+        platforms.create(800, 600, 'ground').setScale(1600/700, 2).refreshBody();
+        platforms.create(400, 420, 'ground').setScale(0.25, 0.5).refreshBody();
+        platforms.create(20, 350, 'ground').setScale(0.5).refreshBody();
+        platforms.create(720, 280, 'ground').setScale(0.5).refreshBody();
+        platforms.create(330, 150, 'ground').setScale(0.75, 0.5).refreshBody();
+        platforms.create(1000, 450, 'ground').setScale(0.5, 0.5).refreshBody();
+        platforms.create(1300, 180, 'ground').setScale(0.875, 0.5).refreshBody();
+
+        //walls
+        platforms.create(-40, 300, 'ground').setScale(0.1,10).refreshBody();
+        platforms.create(1640, 300, 'ground').setScale(0.1,10).refreshBody();
+
+        //spikes
+
+        spikes = this.physics.add.staticGroup();
+
+        spikes.create(400, 497, 'spike').setScale(0.05, 0.1).refreshBody();
+        spikes.create(1200, 497, 'spike').setScale(0.05, 0.1).refreshBody();
+        spikes.create(870, 237, 'spike').setScale(0.05, 0.1).refreshBody();
+        spikes.create(522, 280, 'spike_right').setScale(0.1, 0.05).refreshBody();
+        spikes.create(802, 450, 'spike_right').setScale(0.1, 0.05).refreshBody();
+        spikes.create(218, 350, 'spike_left').setScale(0.1, 0.05).refreshBody();
+
+        //door
+        exit = this.physics.add.staticGroup();
+        exit.create(1500, 470, 'door').setScale(0.2).refreshBody();
+
+        //stars
+        stars = this.physics.add.group();
+        for (let index = 0; index < 5; index++) {
+            stars.create(130 + 100*index, 100, 'star');
+        }
+        for (let index = 0; index < 2; index++){
+            stars.create(600 + 100*index, 230, 'star');
+        }
+        for (let index = 0; index < 2; index++){
+            stars.create(50 + 100*index, 300, 'star');
+        }
+        stars.create(400, 380, 'star');
+        for (let index = 0; index < 5; index++){
+            stars.create(1100 + 100*index, 130, 'star');
+        }
+        for (let index = 0; index < 3; index++){
+            stars.create(900+100*index, 400, 'star');
+        }
+        stars.create(1050, 500, 'star');
+        stars.create(1350, 500, 'star');
+        this.physics.add.collider(stars, platforms);
+
+        //score & lives
+        let score = 0;
+        let scoreText = this.add.text(16, 16, `Score: ${score}`, {fontSize: '16px', fill: '#000'});
+        scoreText.setScrollFactor(0);
+        let lives = 3;
+        let livesText = this.add.text(16, 48, `Lives: ${lives}`, {fontSize: '16px', fill: '#000'});
+        livesText.setScrollFactor(0);
+
+        //player
+        player = this.physics.add.sprite(100, 450, 'player').setScale(0.02);
+
+        this.physics.add.collider(player, platforms);
+        //player.setCollideWorldBounds(true);
+        player.setBounce(0.8);
+
+        this.cameras.main.startFollow(player);
+
+        //calculate score
+        function getStar(player, star){
+            star.disableBody(true, true);
+            score += 10;
+            scoreText.setText(`Score: ${score}`);
+
+        }
+        this.physics.add.collider(player, stars, getStar, null, this);
+
+        //calculate life
+        function touchSpike(player, spike){
+            lives -= 1;
+            livesText.setText(`Lives: ${lives}`)
+            if (lives == 0){
+                this.physics.pause();
+                let newPage = this.add.image(400, 300, 'sky').setScale(2,1);
+                let gameOverText = this.add.text(300, 280, 'Game Over', {fontSize: '40px', fill: '#000'});
+                gameOverText.setScrollFactor(0);
+                gameOver = true;
+
+            }
+        }
+        this.physics.add.collider(player, spikes, touchSpike, null, this);
+
+        //if get to door
+        function touchDoor(player, door){
+            let doorText = this.add.text(300, 240, `Congrats\nScore: ${score}`, {fontSize: '40px', fill: '#000'});
+            doorText.setScrollFactor(0);
+            scoreText.setText('');
+            livesText.setText('');
+            this.physics.pause();
+            gameOver = true;
+        }
+        this.physics.add.collider(player, exit, touchDoor, null, this);
+
+        cursors = this.input.keyboard.createCursorKeys();
+
+    }
+
+    function update ()
+    {
+        
+        if (cursors.left.isDown){
+            player.setAccelerationX(-100);
+        }
+        else if (cursors.right.isDown){
+            player.setAccelerationX(100);
+        }
+        else{
+            player.setAccelerationX(0);
+        }
+
+        if (cursors.up.isDown && player.body.touching.down){
+            player.setVelocityY(500);
+        }
+    }
+
+</script>
+
+</body>
+</html>
